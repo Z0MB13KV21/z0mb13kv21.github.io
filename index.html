@@ -1,9 +1,10 @@
-               <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Processor WebP</title>
+    <title>KV Image Processor WebP</title>
+    <link rel="icon" href="icon.ico" type="image/*">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <style>
@@ -63,11 +64,10 @@ body {
             <label><input type="radio" name="option" value="icono" checked> Icono</label>
             <label><input type="radio" name="option" value="fondo"> Fondo</label>
             <label><input type="radio" name="option" value="producto"> Producto</label>
-            <label><input type="radio" name="option" value="default"> Default</label>
             <label><input type="radio" name="option" value="tarjeta"> Tarjeta</label>
         </div>
-        <button id="processImages" class="btn btn-primary">Process Images</button>
-        <button id="deleteImages" class="btn btn-danger">Eliminar</button>
+        <button id="processImages" class="btn btn-primary" disabled>Process Images</button>
+        <button id="deleteImages" class="btn btn-danger">Omitir</button>
         <button id="clearQueue" class="btn btn-warning">Limpiar</button>
         <div id="previewContainer"></div>
         <div id="outputContainer">
@@ -91,6 +91,7 @@ body {
 
         let processedFiles = [];
         let filesArray = [];
+        let totalProcessedImages = 0;
 
         function showPreviews() {
             const files = document.getElementById('imageUpload').files;
@@ -108,7 +109,7 @@ body {
                         <img src="${e.target.result}" class="img-fluid" data-index="${index}">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="check-${index}" data-index="${index}">
-                            <label class="form-check-label" for="check-${index}">Eliminar</label>
+                            <label class="form-check-label" for="check-${index}">Omitir</label>
                         </div>
                     `;
                     previewContainer.appendChild(imgContainer);
@@ -127,13 +128,12 @@ body {
             if (deleteButton.classList.contains('active')) {
                 deleteButton.classList.remove('active');
                 checkboxes.forEach(checkbox => {
-                    checkbox.checked = false;
                     checkbox.disabled = false;
                 });
             } else {
                 deleteButton.classList.add('active');
                 checkboxes.forEach(checkbox => {
-                    checkbox.disabled = false;
+                    checkbox.disabled = true;
                 });
                 counter.innerText = '0/0';
             }
@@ -145,16 +145,17 @@ body {
             document.getElementById('previewContainer').innerHTML = '';
             document.getElementById('counter').innerText = '0/0';
             document.getElementById('downloadZip').style.display = 'none';
+            totalProcessedImages = 0;
             updateProcessButtonState();
         }
 
         function updateProcessButtonState() {
             const processButton = document.getElementById('processImages');
-            if (filesArray.length > 1) {
-                processButton.disabled = true;
+            if (filesArray.length > 0) {
+                processButton.disabled = false;
                 document.getElementById('downloadZip').style.display = 'inline-block';
             } else {
-                processButton.disabled = false;
+                processButton.disabled = true;
                 document.getElementById('downloadZip').style.display = 'none';
             }
         }
@@ -163,20 +164,28 @@ body {
             const option = document.querySelector('input[name="option"]:checked').value;
             const outputDir = document.getElementById('outputDir').value;
 
-            if (filesArray.length === 1) {
-                const file = filesArray[0];
+            const imagesToProcess = [];
+            filesArray.forEach((file, index) => {
+                if (!document.getElementById(`check-${index}`).checked) {
+                    imagesToProcess.push(file);
+                }
+            });
+
+            if (imagesToProcess.length === 1) {
+                const file = imagesToProcess[0];
                 processFile(file, option, true);
-            } else if (filesArray.length > 1) {
+            } else if (imagesToProcess.length > 1) {
                 let currentFileIndex = 0;
-                const totalFiles = filesArray.length;
-                document.getElementById('counter').innerText = `${currentFileIndex}/${totalFiles}`;
+                const totalFiles = imagesToProcess.length;
+                document.getElementById('counter').innerText = `${totalProcessedImages}/${totalFiles}`;
 
                 function processNextFile() {
                     if (currentFileIndex < totalFiles) {
-                        const file = filesArray[currentFileIndex];
+                        const file = imagesToProcess[currentFileIndex];
                         processFile(file, option, false, () => {
                             currentFileIndex++;
-                            document.getElementById('counter').innerText = `${currentFileIndex}/${totalFiles}`;
+                            totalProcessedImages++;
+                            document.getElementById('counter').innerText = `${totalProcessedImages}/${totalFiles}`;
                             processNextFile();
                         });
                     }
@@ -228,7 +237,7 @@ body {
                 return [400, '-icon'];
             } else if (option === 'fondo') {
                 return [1280, '-back'];
-            } else if (option === 'producto' || option === 'default') {
+            } else if (option === 'producto') {
                 return [500, '-product'];
             } else if (option === 'tarjeta') {
                 return [1280, '-card'];
@@ -240,35 +249,46 @@ body {
                 const suffixCount = {};
                 processedFiles.forEach(file => {
                     const suffix = file.fileName.match(/-(\w+)\.webp$/)[1];
-                    suffixCount[suffix] = (suffixCount[suffix] || 0) + 1;
-                });
+                    suffixCount[suffix] = (suffixCount[suffix] || 0);
+                });          const mostCommonSuffix = Object.keys(suffixCount).reduce((a, b) => suffixCount[a] > suffixCount[b] ? a : b);
+          const zipName = mostCommonSuffix === 'icon' ? 'iconos' : mostCommonSuffix === 'back' ? 'fondo' : mostCommonSuffix === 'product' ? 'productos' : mostCommonSuffix === 'card' ? 'tarjetas' : 'varios';
 
-                const mostCommonSuffix = Object.keys(suffixCount).reduce((a, b) => suffixCount[a] > suffixCount[b] ? a : b);
-                const zipName = most
- const zipName = mostCommonSuffix === 'icon' ? 'iconos' : mostCommonSuffix === 'back' ? 'fondo' : mostCommonSuffix === 'product' ? 'productos' : mostCommonSuffix === 'card' ? 'tarjetas' : 'varios';
+          const zip = new JSZip();
+          processedFiles.forEach(file => {
+              zip.file(file.fileName, file.blob);
+          });
+          zip.generateAsync({ type: 'blob' }).then(function(content) {
+              saveAs(content, `varios.zip`);
+          });
+      }
+  }
 
-                const zip = new JSZip();
-                processedFiles.forEach(file => {
-                    zip.file(file.fileName, file.blob);
-                });
-                zip.generateAsync({ type: 'blob' }).then(function(content) {
-                    saveAs(content, `${zipName}.zip`);
-                });
-            }
-        }
+  $('#deleteImages').on('click', function() {
+      toggleDeleteMode();
+  });
 
-        $('#deleteImages').on('click', function() {
-            toggleDeleteMode();
-            if ($(this).hasClass('active')) {
-                $('.form-check-input').prop('disabled', false);
-            } else {
-                $('.form-check-input').prop('disabled', true);
-            }
-        });
+  $('#clearQueue').on('click', function() {
+      clearQueue();
+  });
 
-        $('#clearQueue').on('click', function() {
-            clearQueue();
-        });
-    </script>
+  function toggleDeleteMode() {
+      const deleteButton = document.getElementById('deleteImages');
+      const checkboxes = document.querySelectorAll('.form-check-input');
+      const counter = document.getElementById('counter');
+
+      if (deleteButton.classList.contains('active')) {
+          deleteButton.classList.remove('active');
+          checkboxes.forEach(checkbox => {
+              checkbox.disabled = false;
+          });
+      } else {
+          deleteButton.classList.add('active');
+          checkboxes.forEach(checkbox => {
+              checkbox.disabled = true;
+          });
+          counter.innerText = '0/0';
+      }
+  }  </script>
 </body>
 </html>
+
