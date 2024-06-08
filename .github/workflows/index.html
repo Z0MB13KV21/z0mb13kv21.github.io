@@ -96,8 +96,10 @@ body {
                 reader.onload = function(e) {
                     const img = document.createElement('img');
                     img.src = e.target.result;
-                    img.addEventListener('dblclick', () => {
-                        filesArray.splice(index, 1);
+                    img.dataset.index = index;
+                    img.addEventListener('dblclick', (event) => {
+                        const idx = event.target.dataset.index;
+                        filesArray.splice(idx, 1);
                         showPreviews();
                     });
                     previewContainer.appendChild(img);
