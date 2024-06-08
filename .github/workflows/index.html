@@ -107,6 +107,10 @@ body {
                 reader.readAsDataURL(file);
             });
 
+            updateProcessButtonState();
+        }
+
+        function updateProcessButtonState() {
             const processButton = document.getElementById('processImages');
             if (filesArray.length > 1) {
                 processButton.disabled = true;
@@ -123,7 +127,7 @@ body {
 
             if (filesArray.length === 1) {
                 const file = filesArray[0];
-                processFile(file, option, outputDir, true);
+                processFile(file, option, true);
             } else if (filesArray.length > 1) {
                 let currentFileIndex = 0;
                 const totalFiles = filesArray.length;
@@ -132,7 +136,7 @@ body {
                 function processNextFile() {
                     if (currentFileIndex < totalFiles) {
                         const file = filesArray[currentFileIndex];
-                        processFile(file, option, outputDir, false, () => {
+                        processFile(file, option, false, () => {
                             currentFileIndex++;
                             document.getElementById('counter').innerText = `${currentFileIndex}/${totalFiles}`;
                             processNextFile();
@@ -144,7 +148,7 @@ body {
             }
         }
 
-        function processFile(file, option, outputDir, autoDownload, callback) {
+        function processFile(file, option, autoDownload, callback) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = new Image();
