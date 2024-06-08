@@ -43,6 +43,7 @@ body {
     border-radius: 4px;
     padding: 5px;
     background-color: #fff;
+    cursor: pointer;
 }
 
 #outputContainer {
@@ -93,25 +94,13 @@ body {
             filesArray.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const imgContainer = document.createElement('div');
-                    imgContainer.style.position = 'relative';
-
                     const img = document.createElement('img');
                     img.src = e.target.result;
-
-                    const removeButton = document.createElement('button');
-                    removeButton.innerText = 'X';
-                    removeButton.style.position = 'absolute';
-                    removeButton.style.top = '5px';
-                    removeButton.style.right = '5px';
-                    removeButton.addEventListener('click', () => {
+                    img.addEventListener('dblclick', () => {
                         filesArray.splice(index, 1);
                         showPreviews();
                     });
-
-                    imgContainer.appendChild(img);
-                    imgContainer.appendChild(removeButton);
-                    previewContainer.appendChild(imgContainer);
+                    previewContainer.appendChild(img);
                 };
                 reader.readAsDataURL(file);
             });
