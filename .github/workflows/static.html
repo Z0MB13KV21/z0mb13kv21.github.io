@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KVConversor | Image Processor WebP</title>
+    <link rel="icon" href="icon.ico" type="image/*">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    width: 400px;
+}
+
+.options {
+    margin: 20px 0;
+}
+
+#previewContainer {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.img-preview {
+    max-width: 100px;
+    margin: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+    background-color: #fff;
+}
+
+#outputContainer {
+    margin-top: 20px;
+}
+
+#counter {
+    margin-top: 20px;
+}
+</style> 
+<body>
+    <div class="container">
+        <h1>Image Processor WebP</h1>
+        <label for="imageUpload">Choose an option:</label>
+        <input type="file" id="imageUpload" multiple accept="image/*">
+        <div class="options">
+            <label><input type="radio" name="option" value="icono" checked> Icono</label>
+            <label><input type="radio" name="option" value="fondo"> Fondo</label>
+            <label><input type="radio" name="option" value="producto"> Producto</label>
+            <label><input type="radio" name="option" value="tarjeta"> Tarjeta</label>
+        </div>
+        <button id="processImages" class="btn btn-primary" disabled>Process Images</button>
+        <button id="deleteImages" class="btn btn-danger">Omitir</button>
+        <button id="clearQueue" class="btn btn-warning">Limpiar</button>
+        <div id="previewContainer"></div>
+        <div id="outputContainer">
+            <label for="outputDir">Output Directory:</label>
+            <input type="text" id="outputDir" class="form-control" value="">
+        </div>
+        <div id="counter">0/0</div>
+        <button id="downloadZip" class="btn btn-success" style="display:none;">Download ZIP</button>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        document.getElementById('imageUpload').addEventListener('change', showPreviews);
+        document.getElementById('processImages').addEventListener('click', processImages);
+        document.getElementById('deleteImages').addEventListener('click', toggleDeleteMode);
+        document.getElementById('clearQueue').addEventListener('click', clearQueue);
+        document.getElementById('downloadZip').addEventListener('click', downloadZip);
+
+        let processedFiles = [];
+        let filesArray = [];
+        let totalProcessedImages = 0;
+
+        function showPreviews() {
+            const files = document.getElementById('imageUpload').files;
+            const previewContainer = document.getElementById('previewContainer');
+            previewContainer.innerHTML = '';
+            filesArray = Array.from(files);
+
+            filesArray.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'img-preview';
+                    imgContainer.dataset.index = index;
+                    imgContainer.innerHTML = `
+                        <img src="${e.target.result}" class="img-fluid" data-index="${index}">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="check-${index}" data-index="${index}">
+                            <label class="form-check-label" for="check-${index}">Omitir</label>
+                        </div>
+                    `;
+                    previewContainer.appendChild(imgContainer);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            updateProcessButtonState();
+        }
+
+        function toggleDeleteMode() {
+            const deleteButton = document.getElementById('deleteImages');
+            const checkboxes = document.querySelectorAll('.form-check-input');
+            const counter = document.getElementById('counter');
+
+            if (deleteButton.classList.contains('active')) {
+                deleteButton.classList.remove('active');
+                checkboxes.forEach(checkbox => {
+                    checkbox.disabled = false;
+                });
+            } else {
+                deleteButton.classList.add('active');
+                checkboxes.forEach(checkbox => {
+                    checkbox.disabled = true;
+                });
+                counter.innerText = '0/0';
+            }
+        }
+
+        function clearQueue() {
+            processedFiles = [];
+            filesArray = [];
+            document.getElementById('previewContainer').innerHTML = '';
+            document.getElementById('counter').innerText = '0/0';
+            document.getElementById('downloadZip').style.display = 'none';
+            totalProcessedImages = 0;
+            updateProcessButtonState();
+        }
+
+        function updateProcessButtonState() {
+            const processButton = document.getElementById('processImages');
+            if (filesArray.length > 0) {
+                processButton.disabled = false;
+                document.getElementById('downloadZip').style.display = 'inline-block';
+            } else {
+                processButton.disabled = true;
+                document.getElementById('downloadZip').style.display = 'none';
+            }
+        }
+
+        function processImages() {
+            const option = document.querySelector('input[name="option"]:checked').value;
+            const outputDir = document.getElementById('outputDir').value;
+
+            const imagesToProcess = [];
+            filesArray.forEach((file, index) => {
+                if (!document.getElementById(`check-${index}`).checked) {
+                    imagesToProcess.push(file);
+                }
+            });
+
+            if (imagesToProcess.length === 1) {
+                const file = imagesToProcess[0];
+                processFile(file, option, true);
+            } else if (imagesToProcess.length > 1) {
+                let currentFileIndex = 0;
+                const totalFiles = imagesToProcess.length;
+                document.getElementById('counter').innerText = `${totalProcessedImages}/${totalFiles}`;
+
+                function processNextFile() {
+                    if (currentFileIndex < totalFiles) {
+                        const file = imagesToProcess[currentFileIndex];
+                        processFile(file, option, false, () => {
+                            currentFileIndex++;
+                            totalProcessedImages++;
+                            document.getElementById('counter').innerText = `${totalProcessedImages}/${totalFiles}`;
+                            processNextFile();
+                        });
+                    }
+                }
+
+                processNextFile();
+            }
+        }
+
+        function processFile(file, option, autoDownload, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const [height, suffix] = getHeightAndSuffixByOption(option);
+                    const canvas = document.createElement('canvas');
+                    const aspectRatio = img.width / img.height;
+                    const newWidth = aspectRatio * height;
+                    canvas.width = newWidth;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, newWidth, height);
+
+                    canvas.toBlob(function(blob) {
+                        const fileName = `${file.name.split('.').slice(0, -1).join('.')}${suffix}.webp`;
+
+                        if (autoDownload) {
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = fileName;
+                            a.click();
+                            URL.revokeObjectURL(a.href);
+                        } else {
+                            processedFiles.push({ fileName, blob });
+                        }
+
+                        if (callback) {
+                            callback();
+                        }
+                    }, 'image/webp', 0.1);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function getHeightAndSuffixByOption(option) {
+            if (option === 'icono') {
+                return [400, '-icon'];
+            } else if (option === 'fondo') {
+                return [1280, '-back'];
+            } else if (option === 'producto') {
+                return [500, '-product'];
+            } else if (option === 'tarjeta') {
+                return [1280, '-card'];
+            }
+        }
+
+        function downloadZip() {
+            if (processedFiles.length > 0) {
+                const suffixCount = {};
+                processedFiles.forEach(file => {
+                    const suffix = file.fileName.match(/-(\w+)\.webp$/)[1];
+                    suffixCount[suffix] = (suffixCount[suffix] || 0);
+                });          const mostCommonSuffix = Object.keys(suffixCount).reduce((a, b) => suffixCount[a] > suffixCount[b] ? a : b);
+          const zipName = mostCommonSuffix === 'icon' ? 'iconos' : mostCommonSuffix === 'back' ? 'fondo' : mostCommonSuffix === 'product' ? 'productos' : mostCommonSuffix === 'card' ? 'tarjetas' : 'varios';
+
+          const zip = new JSZip();
+          processedFiles.forEach(file => {
+              zip.file(file.fileName, file.blob);
+          });
+          zip.generateAsync({ type: 'blob' }).then(function(content) {
+              saveAs(content, `varios.zip`);
+          });
+      }
+  }
+
+  $('#deleteImages').on('click', function() {
+      toggleDeleteMode();
+  });
+
+  $('#clearQueue').on('click', function() {
+      clearQueue();
+  });
+
+  function toggleDeleteMode() {
+      const deleteButton = document.getElementById('deleteImages');
+      const checkboxes = document.querySelectorAll('.form-check-input');
+      const counter = document.getElementById('counter');
+
+      if (deleteButton.classList.contains('active')) {
+          deleteButton.classList.remove('active');
+          checkboxes.forEach(checkbox => {
+              checkbox.disabled = false;
+          });
+      } else {
+          deleteButton.classList.add('active');
+          checkboxes.forEach(checkbox => {
+              checkbox.disabled = true;
+          });
+          counter.innerText = '0/0';
+      }
+  }  </script>
+</body>
+</html>
+
