@@ -226,7 +226,7 @@ body {
                         if (callback) {
                             callback();
                         }
-                    }, 'image/webp', 0.8);
+                    }, 'image/webp', 0.9);
                 };
                 img.src = e.target.result;
             };
@@ -239,7 +239,7 @@ body {
             } else if (option === 'fondo') {
                 return [1280, '-back'];
             } else if (option === 'producto') {
-                return [500, '-product'];
+                return [800, '-product'];
             } else if (option === 'tarjeta') {
                 return [1280, '-card'];
             }
