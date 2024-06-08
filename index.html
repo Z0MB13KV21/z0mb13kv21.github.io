@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Processor WebP</title>
+</head>
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+    }
+    
+    .container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        width: 300px;
+    }
+    
+    .options {
+        margin: 20px 0;
+    }
+    
+    #previewContainer {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    #previewContainer img {
+        max-width: 100px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
+        background-color: #fff;
+    }
+    
+    #outputContainer {
+        margin-top: 20px;
+    }
+    
+    #counter {
+        margin-top: 20px;
+    }
+    </style> 
+<body>
+    <div class="container">
+        <h1>Image Processor WebP</h1>
+        <label for="imageUpload">Choose an option:</label>
+        <input type="file" id="imageUpload" multiple accept="image/*">
+        <div class="options">
+            <label><input type="radio" name="option" value="icono" checked> Icono</label>
+            <label><input type="radio" name="option" value="fondo"> Fondo</label>
+            <label><input type="radio" name="option" value="producto"> Producto</label>
+            <label><input type="radio" name="option" value="default"> Default</label>
+            <label><input type="radio" name="option" value="tarjeta"> Tarjeta</label>
+        </div>
+        <button id="processImages">Process Images</button>
+        <div id="previewContainer"></div>
+        <div id="outputContainer">
+            <label for="outputDir">Output Directory:</label>
+            <input type="text" id="outputDir" value="">
+        </div>
+        <div id="counter">0/0</div>
+        <button id="downloadZip">Download ZIP</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        document.getElementById('imageUpload').addEventListener('change', showPreviews);
+        document.getElementById('processImages').addEventListener('click', processImages);
+        document.getElementById('downloadZip').addEventListener('click', downloadZip);
+
+        let processedFiles = [];
+
+        function showPreviews() {
+            const files = document.getElementById('imageUpload').files;
+            const previewContainer = document.getElementById('previewContainer');
+            previewContainer.innerHTML = '';
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    previewContainer.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function processImages() {
+            const files = document.getElementById('imageUpload').files;
+            const option = document.querySelector('input[name="option"]:checked').value;
+            const outputDir = document.getElementById('outputDir').value;
+            
+            if (files.length > 0) {
+                let currentFileIndex = 0;
+                const totalFiles = files.length;
+                document.getElementById('counter').innerText = `${currentFileIndex}/${totalFiles}`;
+        
+                function processNextFile() {
+                    if (currentFileIndex < totalFiles) {
+                        const file = files[currentFileIndex];
+                        const reader = new FileReader();
+        
+                        reader.onload = function(e) {
+                            const img = new Image();
+                            img.onload = function() {
+                                const [height, suffix] = getHeightAndSuffixByOption(option);
+                                const canvas = document.createElement('canvas');
+                                const aspectRatio = img.width / img.height;
+                                const newWidth = aspectRatio * height;
+                                canvas.width = newWidth;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, newWidth, height);
+        
+                                canvas.toBlob(function(blob) {
+                                    const fileName = `${file.name.split('.').slice(0, -1).join('.')}${suffix}.webp`;
+                                    processedFiles.push({ fileName, blob });
+                                    currentFileIndex++;
+                                    document.getElementById('counter').innerText = `${currentFileIndex}/${totalFiles}`;
+                                    processNextFile();
+                                }, 'image/webp', 0.1);
+                            };
+                            img.src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+        
+                processNextFile();
+            }
+        }
+        
+        function getHeightAndSuffixByOption(option) {
+            if (option === 'icono') {
+                return [400, '-icon'];
+            } else if (option === 'fondo') {
+                return [1280, '-back'];
+            } else if (option === 'producto' || option === 'default') {
+                return [500, '-product'];
+            } else if (option === 'tarjeta') {
+                return [1280, '-card'];
+            }
+        }
+
+        function downloadZip() {
+            if (processedFiles.length > 0) {
+                const zip = new JSZip();
+                processedFiles.forEach(file => {
+                    zip.file(file.fileName, file.blob);
+                });
+                zip.generateAsync({ type: 'blob' }).then(function(content) {
+                    saveAs(content, 'processed_images.zip');
+                });
+            }
+        }
+    </script>
+</body>
+</html>
