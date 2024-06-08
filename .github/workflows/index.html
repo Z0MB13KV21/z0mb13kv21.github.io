@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Processor WebP</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <style>
 body {
@@ -22,7 +23,7 @@ body {
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     text-align: center;
-    width: 300px;
+    width: 400px;
 }
 
 .options {
@@ -36,14 +37,13 @@ body {
     justify-content: center;
 }
 
-#previewContainer img {
+.img-preview {
     max-width: 100px;
     margin: 5px;
     border: 1px solid #ddd;
     border-radius: 4px;
     padding: 5px;
     background-color: #fff;
-    cursor: pointer;
 }
 
 #outputContainer {
@@ -66,20 +66,27 @@ body {
             <label><input type="radio" name="option" value="default"> Default</label>
             <label><input type="radio" name="option" value="tarjeta"> Tarjeta</label>
         </div>
-        <button id="processImages">Process Images</button>
+        <button id="processImages" class="btn btn-primary">Process Images</button>
+        <button id="deleteImages" class="btn btn-danger">Eliminar</button>
+        <button id="clearQueue" class="btn btn-warning">Limpiar</button>
         <div id="previewContainer"></div>
         <div id="outputContainer">
             <label for="outputDir">Output Directory:</label>
-            <input type="text" id="outputDir" value="">
+            <input type="text" id="outputDir" class="form-control" value="">
         </div>
         <div id="counter">0/0</div>
-        <button id="downloadZip" style="display:none;">Download ZIP</button>
+        <button id="downloadZip" class="btn btn-success" style="display:none;">Download ZIP</button>
     </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script>
         document.getElementById('imageUpload').addEventListener('change', showPreviews);
         document.getElementById('processImages').addEventListener('click', processImages);
+        document.getElementById('deleteImages').addEventListener('click', toggleDeleteMode);
+        document.getElementById('clearQueue').addEventListener('click', clearQueue);
         document.getElementById('downloadZip').addEventListener('click', downloadZip);
 
         let processedFiles = [];
@@ -94,19 +101,50 @@ body {
             filesArray.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.dataset.index = index;
-                    img.addEventListener('dblclick', (event) => {
-                        const idx = event.target.dataset.index;
-                        filesArray.splice(idx, 1);
-                        showPreviews();
-                    });
-                    previewContainer.appendChild(img);
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'img-preview';
+                    imgContainer.dataset.index = index;
+                    imgContainer.innerHTML = `
+                        <img src="${e.target.result}" class="img-fluid" data-index="${index}">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="check-${index}" data-index="${index}">
+                            <label class="form-check-label" for="check-${index}">Eliminar</label>
+                        </div>
+                    `;
+                    previewContainer.appendChild(imgContainer);
                 };
                 reader.readAsDataURL(file);
             });
 
+            updateProcessButtonState();
+        }
+
+        function toggleDeleteMode() {
+            const deleteButton = document.getElementById('deleteImages');
+            const checkboxes = document.querySelectorAll('.form-check-input');
+            const counter = document.getElementById('counter');
+
+            if (deleteButton.classList.contains('active')) {
+                deleteButton.classList.remove('active');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                    checkbox.disabled = false;
+                });
+            } else {
+                deleteButton.classList.add('active');
+                checkboxes.forEach(checkbox => {
+                    checkbox.disabled = false;
+                });
+                counter.innerText = '0/0';
+            }
+        }
+
+        function clearQueue() {
+            processedFiles = [];
+            filesArray = [];
+            document.getElementById('previewContainer').innerHTML = '';
+            document.getElementById('counter').innerText = '0/0';
+            document.getElementById('downloadZip').style.display = 'none';
             updateProcessButtonState();
         }
 
@@ -206,7 +244,7 @@ body {
                 });
 
                 const mostCommonSuffix = Object.keys(suffixCount).reduce((a, b) => suffixCount[a] > suffixCount[b] ? a : b);
-                const zipName = mostCommonSuffix === 'icon' ? 'iconos' : mostCommonSuffix === 'back' ? 'fondo' : mostCommonSuffix === 'product' ? 'productos' : mostCommonSuffix === 'card' ? 'tarjetas' : 'varios';
+                const zipName = most                const zipName = mostCommonSuffix === 'icon' ? 'iconos' : mostCommonSuffix === 'back' ? 'fondo' : mostCommonSuffix === 'product' ? 'productos' : mostCommonSuffix === 'card' ? 'tarjetas' : 'varios';
 
                 const zip = new JSZip();
                 processedFiles.forEach(file => {
@@ -217,6 +255,20 @@ body {
                 });
             }
         }
+
+        $('#deleteImages').on('click', function() {
+            toggleDeleteMode();
+            if ($(this).hasClass('active')) {
+                $('.form-check-input').prop('disabled', false);
+            } else {
+                $('.form-check-input').prop('disabled', true);
+            }
+        });
+
+        $('#clearQueue').on('click', function() {
+            clearQueue();
+        });
     </script>
 </body>
 </html>
+
